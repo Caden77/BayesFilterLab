@@ -1,16 +1,12 @@
 
-import javax.swing.*;
-import java.awt.event.*;
 import java.awt.Color;
-import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.event.*;
+import java.io.*;
 import java.lang.*;
+import java.net.*;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
-import java.io.*;
-import java.util.Random;
-import java.util.Scanner;
-import java.net.*;
 
 
 // This class draws the probability map and value iteration map that you create to the window
@@ -401,13 +397,189 @@ public class theRobot extends JFrame {
         
         myMaps.updateProbs(probs);
     }
-    
+
+    double[][] deepCopyProbabilities(double[][] currProbs) {
+        double[][] newProbs = new double[currProbs.length][currProbs[0].length];
+        for (int c = 0; c < currProbs.length; c++) {
+            for (int r = 0; r < currProbs[0].length; r++) {
+                newProbs[c][r] = currProbs[c][r];
+            }
+        }
+        return newProbs;
+    }
+
+    double[][] predictTransition(double[][] currProbs, int action) {
+        double[][] probsPredicted = deepCopyProbabilities(currProbs);
+        //System.out.printf("using a move probability of: %f\n", moveProb);
+        // printProbabilityBoard(probsPredicted);
+        // printProbabilityBoard(currProbs);
+
+        //go through the array by column's first to avoid confusion
+        for (int c = 0; c < probsPredicted.length; c++) {
+            for (int r = 0; r < probsPredicted[0].length; r++) {
+                //go through all probabilities
+                //System.out.printf("on 'row': %d 'col': %d\n", r, c);
+
+                //if this square is a wall then skip it as a movement option
+                if (mundo.grid[c][r] == 1) {
+                    //System.out.println("skipped wall");
+                    continue;
+                }
+                
+                //for each individual tile calculate the probability of landing ON the tile next
+                // based upon surrounding spaces
+                //store direction based on index of what will get on this tile: 
+                //coming from action of... north, south, east, west, stay
+                int[] surrSpaces = {r + 1, c, r - 1, c, r, c - 1, r, c + 1, r, c};
+                double predictionSum = 0;
+                for (int spaceI = 0; spaceI < surrSpaces.length / 2; spaceI += 1) {
+                    int spaceR = surrSpaces[(spaceI * 2)];
+                    int spaceC = surrSpaces[(spaceI * 2) + 1];
+
+                    //check for invalid spaces (i.e out of bounds)
+                    if ((spaceR < 0 || spaceR >= mundo.height) ||
+                            (spaceC < 0 || spaceC >= mundo.width)) {
+                        continue;
+                    }
+
+                    //else add to the probability sum for this transition
+                    double transitionProb;
+                    if (spaceI == action) {
+                        transitionProb = moveProb;
+                    } else {
+                        transitionProb = (1 - moveProb) / 4;
+                    }
+                    //System.out.println("row from: " + spaceR + " col from: " + spaceC);
+                    //System.out.printf("adding %f * %f index:%d, from: %d, %d\n", probs[spaceC][spaceR], transitionProb, spaceI, spaceR, spaceC);
+                    predictionSum += probs[spaceC][spaceR] * transitionProb;
+                }
+
+                //System.out.printf("predictionSum: %f\n", predictionSum);
+
+                probsPredicted[c][r] = predictionSum;
+            }
+        }
+
+        return probsPredicted;
+    }
+
+    double[][] observeSensorProbabilities(double[][] currProbs, String sonars) {
+        double[][] probsPredicted = currProbs.clone();
+
+        //for every spot (column first)
+        for (int c = 0; c < probsPredicted.length; c++) {
+            for (int r = 0; r < probsPredicted[0].length; r++) {
+                //if at a wall skip it
+                if (mundo.grid[c][r] == 1) {
+                    continue;
+                }
+
+                double probCorrect = probsPredicted[c][r];
+                //go through each sensor
+                //multiply the probability that the sonar is correct
+                //check for upwards for a wall
+                if (((sonars.charAt(0) == '1') && (r - 1 >= 0 && mundo.grid[c][r - 1] == 1)) ||
+                        ((sonars.charAt(0) == '0') && (r - 1 >= 0 && mundo.grid[c][r - 1] == 0))) {
+                    probCorrect *= sensorAccuracy;
+                } else {
+                    probCorrect *= (1 - sensorAccuracy);
+                }
+                //down
+                if (((sonars.charAt(1) == '1') && (r + 1 < probsPredicted[0].length && mundo.grid[c][r + 1] == 1)) ||
+                        ((sonars.charAt(1) == '0') && (r + 1 < probsPredicted[0].length && mundo.grid[c][r + 1] == 0))) {
+                    probCorrect *= sensorAccuracy;
+                } else {
+                    probCorrect *= (1 - sensorAccuracy);
+                }
+                //right
+                if (((sonars.charAt(2) == '1') && (c + 1 < probsPredicted.length && mundo.grid[c + 1][r] == 1)) ||
+                        ((sonars.charAt(2) == '0') && (c + 1 < probsPredicted.length && mundo.grid[c + 1][r] == 0))) {
+                    probCorrect *= sensorAccuracy;
+                } else {
+                    probCorrect *= (1 - sensorAccuracy);
+                }
+                //left
+                if (((sonars.charAt(3) == '1') && (c - 1 >= 0 && mundo.grid[c - 1][r] == 1)) || 
+                        ((sonars.charAt(3) == '0') && (c - 1 >= 0 && mundo.grid[c - 1][r] == 0))) {
+                    probCorrect *= sensorAccuracy;
+                } else {
+                    probCorrect *= (1 - sensorAccuracy);
+                }
+
+                probsPredicted[c][r] = probCorrect;
+                //System.out.println("probCorrect: " + probCorrect);
+            }
+        }
+
+        return probsPredicted;
+    }
+
+    double[][] normalizeProbabilities(double[][] currProb) {
+        double[][] probsPredicted = deepCopyProbabilities(currProb);
+        printProbabilityBoard(currProb);
+        double sum = 0;
+        for (int c = 0; c < currProb.length; c++) {
+            for (int r = 0; r < currProb[0].length; r++) {
+                sum += currProb[c][r];
+            }
+        }
+        System.out.println("sum: " + sum);
+        for (int c = 0; c < currProb.length; c++) {
+            for (int r = 0; r < currProb[0].length; r++) {
+                if (probsPredicted[c][r] != 0.0) {
+                    probsPredicted[c][r] = probsPredicted[c][r] / sum;
+                }
+            }
+        }
+        return probsPredicted;
+    }
+
+    void printProbabilityBoard(double[][] board) {
+        //print probsPredicted
+        //column dominant
+        for (int r = 0; r < board[0].length; r++) {
+            for (int c = 0; c < board.length; c++) {
+                System.out.printf("%.2f\t ", board[c][r]);
+            }
+            System.out.println();
+        }
+    }
+
     // TODO: update the probabilities of where the AI thinks it is based on the action selected and the new sonar readings
     //       To do this, you should update the 2D-array "probs"
     // Note: sonars is a bit string with four characters, specifying the sonar reading in the direction of North, South, East, and West
     //       For example, the sonar string 1001, specifies that the sonars found a wall in the North and West directions, but not in the South and East directions
     void updateProbabilities(int action, String sonars) {
+        //given values of action are as follows:
+        // NORTH    0
+        // STAY     1
+        // EAST     2
+        // SOUTH    3
+        // WEST     4
+
+        //sensors is up down right left
+
+        System.out.println("action is " + action);
+        System.out.println("sensing: " + sonars);
         // your code
+        double[][] probsPredicted = deepCopyProbabilities(probs);
+        //NOTE!!!!! The probabilities array is flipped! columns are rows and rows are columns for some unknown stupid reason >:(
+        //probsPredicted[0][1] = 1;
+
+        // System.out.println();
+        // printProbabilityBoard(probs);
+
+        //Predict
+        probs = predictTransition(probs, action);
+
+        // System.out.println();
+        // printProbabilityBoard(probs);
+
+        //Observe (with the new sonar readings)
+        probs = observeSensorProbabilities(probs, sonars);
+
+        //Normalize
+        probs = normalizeProbabilities(probs);
 
         myMaps.updateProbs(probs); // call this function after updating your probabilities so that the
                                    //  new probabilities will show up in the probability map on the GUI
