@@ -411,8 +411,6 @@ public class theRobot extends JFrame {
     double[][] predictTransition(double[][] currProbs, int action) {
         double[][] probsPredicted = deepCopyProbabilities(currProbs);
         //System.out.printf("using a move probability of: %f\n", moveProb);
-        // printProbabilityBoard(probsPredicted);
-        // printProbabilityBoard(currProbs);
 
         //go through the array by column's first to avoid confusion
         for (int c = 0; c < probsPredicted.length; c++) {
@@ -420,14 +418,17 @@ public class theRobot extends JFrame {
                 //go through all probabilities
                 //System.out.printf("on 'row': %d 'col': %d\n", r, c);
 
-                //if this square is a wall then skip it as a movement option
-                if (mundo.grid[c][r] == 1) {
-                    //System.out.println("skipped wall");
+                //if this square is not a space we can occupy then skip it as a movement option (it would be the end of the game otherwise)
+                if (mundo.grid[c][r] != 0) {
+                    //System.out.println("skipped");
                     continue;
                 }
                 
                 //for each individual tile calculate the probability of landing ON the tile next
                 // based upon surrounding spaces
+                // there are two movement options for each individual action:
+                // * movement from an empty nearby space to the current space
+                // * movement on the current space into an ajacent wall, resulting in staying on the current space
                 //store direction based on index of what will get on this tile: 
                 //coming from action of... north, south, east, west, stay
                 int[] surrSpaces = {r + 1, c, r - 1, c, r, c - 1, r, c + 1, r, c};
@@ -435,26 +436,44 @@ public class theRobot extends JFrame {
                 for (int spaceI = 0; spaceI < surrSpaces.length / 2; spaceI += 1) {
                     int spaceR = surrSpaces[(spaceI * 2)];
                     int spaceC = surrSpaces[(spaceI * 2) + 1];
+                    int rowDif = spaceR - r;
+                    int colDif = spaceC - c;
+                    int wallR = r - rowDif;
+                    int wallC = c - colDif;
 
-                    //check for invalid spaces (i.e out of bounds)
+                    //check for invalid spaces (i.e out of bounds) and empty spaces (not coming from the finish or death spaces or walls)
                     if ((spaceR < 0 || spaceR >= mundo.height) ||
-                            (spaceC < 0 || spaceC >= mundo.width)) {
-                        continue;
-                    }
-
-                    //else add to the probability sum for this transition
-                    double transitionProb;
-                    if (spaceI == action) {
-                        transitionProb = moveProb;
+                            (spaceC < 0 || spaceC >= mundo.width) ||
+                            (mundo.grid[spaceC][spaceR] != 0)) {
+                        //continue onto next test
                     } else {
-                        transitionProb = (1 - moveProb) / 4;
+                        //else add to the probability sum for this transition from an empty space
+                        double transitionProb;
+                        if (spaceI == action) {
+                            transitionProb = moveProb;
+                        } else {
+                            transitionProb = (1 - moveProb) / 4;
+                        }
+                        predictionSum += probs[spaceC][spaceR] * transitionProb;
                     }
-                    //System.out.println("row from: " + spaceR + " col from: " + spaceC);
-                    //System.out.printf("adding %f * %f index:%d, from: %d, %d\n", probs[spaceC][spaceR], transitionProb, spaceI, spaceR, spaceC);
-                    predictionSum += probs[spaceC][spaceR] * transitionProb;
+                    
+                    //consider running into a wall
+                    if ((wallR < 0 || wallR >= mundo.height) ||
+                    (wallC < 0 || wallC >= mundo.width) ||
+                    (mundo.grid[wallC][wallR] != 1)) {
+                        //if the next space to move into is not a wall don't do anything
+                    } else {
+                        //moving into a wall, if in the direction of the wanted action then give it a higher probability
+                        double transitionProb;
+                        if (spaceI == action) {
+                            transitionProb = moveProb;
+                        } else {
+                            transitionProb = (1 - moveProb) / 4;
+                        }
+                        predictionSum += probs[c][r] * transitionProb; //go off of the current probability for this square
+                        //should look like the previous probability adds to the current probability
+                    }
                 }
-
-                //System.out.printf("predictionSum: %f\n", predictionSum);
 
                 probsPredicted[c][r] = predictionSum;
             }
@@ -469,8 +488,8 @@ public class theRobot extends JFrame {
         //for every spot (column first)
         for (int c = 0; c < probsPredicted.length; c++) {
             for (int r = 0; r < probsPredicted[0].length; r++) {
-                //if at a wall skip it
-                if (mundo.grid[c][r] == 1) {
+                //if not at an empty square (i.e. a wall finish or death space) skip it
+                if (mundo.grid[c][r] != 0) {
                     continue;
                 }
 
@@ -479,28 +498,28 @@ public class theRobot extends JFrame {
                 //multiply the probability that the sonar is correct
                 //check for upwards for a wall
                 if (((sonars.charAt(0) == '1') && (r - 1 >= 0 && mundo.grid[c][r - 1] == 1)) ||
-                        ((sonars.charAt(0) == '0') && (r - 1 >= 0 && mundo.grid[c][r - 1] == 0))) {
+                        ((sonars.charAt(0) == '0') && (r - 1 >= 0 && mundo.grid[c][r - 1] != 1))) {
                     probCorrect *= sensorAccuracy;
                 } else {
                     probCorrect *= (1 - sensorAccuracy);
                 }
                 //down
                 if (((sonars.charAt(1) == '1') && (r + 1 < probsPredicted[0].length && mundo.grid[c][r + 1] == 1)) ||
-                        ((sonars.charAt(1) == '0') && (r + 1 < probsPredicted[0].length && mundo.grid[c][r + 1] == 0))) {
+                        ((sonars.charAt(1) == '0') && (r + 1 < probsPredicted[0].length && mundo.grid[c][r + 1] != 1))) {
                     probCorrect *= sensorAccuracy;
                 } else {
                     probCorrect *= (1 - sensorAccuracy);
                 }
                 //right
                 if (((sonars.charAt(2) == '1') && (c + 1 < probsPredicted.length && mundo.grid[c + 1][r] == 1)) ||
-                        ((sonars.charAt(2) == '0') && (c + 1 < probsPredicted.length && mundo.grid[c + 1][r] == 0))) {
+                        ((sonars.charAt(2) == '0') && (c + 1 < probsPredicted.length && mundo.grid[c + 1][r] != 1))) {
                     probCorrect *= sensorAccuracy;
                 } else {
                     probCorrect *= (1 - sensorAccuracy);
                 }
                 //left
                 if (((sonars.charAt(3) == '1') && (c - 1 >= 0 && mundo.grid[c - 1][r] == 1)) || 
-                        ((sonars.charAt(3) == '0') && (c - 1 >= 0 && mundo.grid[c - 1][r] == 0))) {
+                        ((sonars.charAt(3) == '0') && (c - 1 >= 0 && mundo.grid[c - 1][r] != 1))) {
                     probCorrect *= sensorAccuracy;
                 } else {
                     probCorrect *= (1 - sensorAccuracy);
@@ -516,14 +535,14 @@ public class theRobot extends JFrame {
 
     double[][] normalizeProbabilities(double[][] currProb) {
         double[][] probsPredicted = deepCopyProbabilities(currProb);
-        printProbabilityBoard(currProb);
+        //printProbabilityBoard(currProb);
         double sum = 0;
         for (int c = 0; c < currProb.length; c++) {
             for (int r = 0; r < currProb[0].length; r++) {
                 sum += currProb[c][r];
             }
         }
-        System.out.println("sum: " + sum);
+        // System.out.println("sum: " + sum);
         for (int c = 0; c < currProb.length; c++) {
             for (int r = 0; r < currProb[0].length; r++) {
                 if (probsPredicted[c][r] != 0.0) {
@@ -550,33 +569,23 @@ public class theRobot extends JFrame {
     // Note: sonars is a bit string with four characters, specifying the sonar reading in the direction of North, South, East, and West
     //       For example, the sonar string 1001, specifies that the sonars found a wall in the North and West directions, but not in the South and East directions
     void updateProbabilities(int action, String sonars) {
-        //given values of action are as follows:
-        // NORTH    0
-        // STAY     1
-        // EAST     2
-        // SOUTH    3
-        // WEST     4
-
         //sensors is up down right left
 
-        System.out.println("action is " + action);
-        System.out.println("sensing: " + sonars);
+        // System.out.println("action is " + action);
+        // System.out.println("sensing: " + sonars);
         // your code
         double[][] probsPredicted = deepCopyProbabilities(probs);
-        //NOTE!!!!! The probabilities array is flipped! columns are rows and rows are columns for some unknown stupid reason >:(
-        //probsPredicted[0][1] = 1;
-
-        // System.out.println();
-        // printProbabilityBoard(probs);
+        //NOTE!!!!! The probabilities array is flipped! columns are rows and rows are columns
 
         //Predict
         probs = predictTransition(probs, action);
 
-        // System.out.println();
-        // printProbabilityBoard(probs);
+        //printProbabilityBoard(probs);
 
         //Observe (with the new sonar readings)
         probs = observeSensorProbabilities(probs, sonars);
+
+        //printProbabilityBoard(probs);
 
         //Normalize
         probs = normalizeProbabilities(probs);
@@ -584,18 +593,214 @@ public class theRobot extends JFrame {
         myMaps.updateProbs(probs); // call this function after updating your probabilities so that the
                                    //  new probabilities will show up in the probability map on the GUI
     }
+
+    double getExpectedUtility(int action) {
+        int GRID_WALL = 1;
+        int GRID_DEATH = 2;
+        int GRID_GOAL = 3;
+        int GRID_EMPTY = 0;
+        return 0.0;
+    }
+
+    int selectMaxExpectedUtilityAction() {
+        int NUMBER_OF_DIRECTIONS_TO_MOVE = 5;
+
+        //return the action with the maximum expected value
+        int maxAction = STAY;
+        double maxExpectedUtility = 0;
+        for (int a = 0; a < NUMBER_OF_DIRECTIONS_TO_MOVE; a++) {
+            //get the expected utility for this action
+            double expectedUtility = getExpectedUtility(a);
+            if (a == 0) {
+                maxAction = 0;
+                maxExpectedUtility = expectedUtility;
+            } else if (maxExpectedUtility < expectedUtility) {
+                maxAction = a;
+                maxExpectedUtility = expectedUtility;
+            }
+        }
+        return maxAction;
+    }
     
     // This is the function you'd need to write to make the robot move using your AI;
     // You do NOT need to write this function for this lab; it can remain as is
     int automaticAction() {
+        //     rewardMatrix[][]
+
+        //     public static final int NORTH = 0;
+        // public static final int SOUTH = 1;
+        // public static final int EAST = 2;
+        // public static final int WEST = 3;
+        // public static final int STAY = 4;
+
+        //Approach 1
+        // return selectMaxExpectedUtilityAction();
+        
+
+
         
         return STAY;  // default action for now
+    }
+
+    double[] getTransitionProbs(int direction) {
+        double[] transitionProbs = new double[5];
+        //goes up, down, right, left, stay
+        for (int i = 0; i < 5; i++) {
+            transitionProbs[i] = (1 - moveProb) / 4;
+        }
+        transitionProbs[direction] = moveProb;
+        return transitionProbs;
+    }
+
+    /*
+     * Returns the next position of the 
+     */
+    int[] getNextPosition(int[] currPos, int direction) {
+        //currPos = column, row pair in that order
+
+        int GRID_WALL = 1;
+        int GRID_DEATH = 2;
+        int GRID_GOAL = 3;
+        int GRID_EMPTY = 0;
+        
+        int newC = currPos[0];
+        int newR = currPos[1];
+        if (mundo.grid[currPos[0]][currPos[1]] == GRID_EMPTY) {
+            //dependant on the direction increase/decrease r or c if you can
+            //if moving and CAN move there then execute, else return the current position
+            if (direction == NORTH && mundo.grid[newC][newR - 1] != GRID_WALL) {
+                newR = newR - 1;
+            } else if (direction == SOUTH && mundo.grid[newC][newR + 1] != GRID_WALL) {
+                newR = newR + 1;
+            } else if (direction == EAST && mundo.grid[newC + 1][newR] != GRID_WALL) {
+                newC = newC + 1;
+            } else if (direction == WEST && mundo.grid[newC - 1][newR] != GRID_WALL) {
+                newC = newC - 1;
+            }
+        } else {
+            System.out.println("player unable to reach this position");
+        }
+
+        int[] newPair = {newC, newR};
+        return newPair;
+    }
+
+    void valueIteration() {
+        System.out.println("Starting value Iteration");
+        //Initialize:
+        //Constants
+        double REWARD_EMPTY = -0.2;
+        double REWARD_DEATH = -20;
+        double REWARD_GOAL = 20;
+        double REWARD_WALL = 0.0; //not looked at
+        int NUMBER_OF_DIRECTIONS_TO_MOVE = 5;
+        int GRID_WALL = 1;
+        int GRID_DEATH = 2;
+        int GRID_GOAL = 3;
+        int GRID_EMPTY = 0;
+
+        double discount_fact = 1.0;
+        double converge_bound = 0.2;
+        double[][] rewardMatrix = new double[mundo.width][mundo.height];
+
+        //Get probabilities (what direction to go toward (initially always deterministic))
+        //For now assume the directions are all to stay put (will move around randomly)
+        //Initialize values
+        //Initialize rewards
+        for (int c = 0; c < mundo.width; c++) {
+            for (int r = 0; r < mundo.height; r++) {
+                switch (mundo.grid[c][r]) {
+                    case 0:
+                        //open
+                        Vs[c][r] = REWARD_EMPTY;
+                        rewardMatrix[c][r] = REWARD_EMPTY;
+                        break;
+                    case 1:
+                        //wall?
+                        Vs[c][r] = REWARD_WALL;
+                        rewardMatrix[c][r] = REWARD_WALL;
+                        break;
+                    case 2:
+                        //death
+                        Vs[c][r] = REWARD_DEATH;
+                        rewardMatrix[c][r] = REWARD_DEATH;
+                        break;
+                    case 3:
+                        //goal
+                        Vs[c][r] = REWARD_GOAL;
+                        rewardMatrix[c][r] = REWARD_GOAL;
+                        break;
+                    default:
+                        //Unknown
+                        System.out.println("Error in value iteration rewards");
+                        break;
+                }
+            }
+        }
+        //Initialize discount factor
+        //Initialize convergence factor
+
+        double prevConvergeVal = converge_bound + 1;
+        while (prevConvergeVal > converge_bound) {
+            //1. calculate the new utility values
+
+            //for every state s, calculate it's new utility value (the grid is column first!)
+            
+            for (int c = 0; c < mundo.width; c++) {
+                for (int r = 0; r < mundo.height; r++) {
+                    //Don't need to calculate utility values of walls, or end states (death / goal)
+                    //Walls are not able to be moved to so they don't have values
+                    //End states have fixed values because no actions are executed away from them.
+                    if (mundo.grid[c][r] == GRID_DEATH || mundo.grid[c][r] == GRID_GOAL || mundo.grid[c][r] == GRID_WALL) {
+                        continue;
+                    }
+
+
+                    //state s == (c, r)
+                    int[] thisPair = {c, r};
+                    double oldUtilityVal = Vs[c][r];
+
+                    //calculate the max utility of going any maximal direction
+                    double maxUtilVal = 0;
+                    for (int d = 0; d < NUMBER_OF_DIRECTIONS_TO_MOVE; d++) {
+                        //Get the utility of choosing to go direction d
+                        double[] transitionProbs = getTransitionProbs(d);
+                        double thisUtility = 0;
+                        for (int probDir = 0; probDir < NUMBER_OF_DIRECTIONS_TO_MOVE; probDir++) {
+                            int[] newPos = getNextPosition(thisPair, d);
+                            double transVal = Vs[newPos[0]][newPos[1]];
+                            thisUtility += transitionProbs[probDir] * transVal;
+                        }
+
+                        //compare max utilities
+                        if (d == 0) {
+                            maxUtilVal = thisUtility;
+                        } else if (maxUtilVal < thisUtility) {
+                            maxUtilVal = thisUtility;
+                        }
+                    }
+
+                    //calculate the new value for this state
+                    double newUtilityVal = rewardMatrix[c][r] + discount_fact * maxUtilVal;
+                    Vs[c][r] = newUtilityVal;
+
+                    //Take maximum convergance amount
+                    double newConvergeVal = Math.abs(newUtilityVal - oldUtilityVal);
+                    if (c == 0 && r == 0) {
+                        //This is the first iteration
+                        prevConvergeVal = newConvergeVal;
+                    } else if (newConvergeVal > prevConvergeVal) {
+                        prevConvergeVal = newConvergeVal;
+                    }
+                }
+            }
+        }
     }
     
     void doStuff() {
         int action;
         
-        //valueIteration();  // TODO: function you will write in Part II of the lab
+        valueIteration();  // TODO: function you will write in Part II of the lab
         initializeProbabilities();  // Initializes the location (probability) map
         
         while (true) {
