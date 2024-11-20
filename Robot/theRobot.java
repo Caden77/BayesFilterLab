@@ -594,37 +594,66 @@ public class theRobot extends JFrame {
                                    //  new probabilities will show up in the probability map on the GUI
     }
 
-    double getExpectedUtility(int action) {
-        int GRID_WALL = 1;
-        int GRID_DEATH = 2;
-        int GRID_GOAL = 3;
-        int GRID_EMPTY = 0;
-        return 0.0;
-    }
+    // /*
+    //  * Get the expected utility of a certain position on the board, given the direction that
+    //  * the robot will try to move in if in that state.
+    //  */
+    // double getExpectedUtility(int[] currPos, int action) {
+    //     //TODO:can't get the next position if the current position is a wall
 
-    int selectMaxExpectedUtilityAction() {
-        int NUMBER_OF_DIRECTIONS_TO_MOVE = 5;
+    //     double currStateUtility = 0;
+    //     double[] transProbs = getTransitionProbs(action);
+    //     for (int i = 0; i < 5; i++) {
+    //         int[] nextPos = getNextPosition(currPos, i);
+    //         currStateUtility += (transProbs[i] * Vs[nextPos[0]][nextPos[1]]);
+    //     }
+    //     return currStateUtility;
+    // }
 
-        //return the action with the maximum expected value
-        int maxAction = STAY;
-        double maxExpectedUtility = 0;
-        for (int a = 0; a < NUMBER_OF_DIRECTIONS_TO_MOVE; a++) {
-            //get the expected utility for this action
-            double expectedUtility = getExpectedUtility(a);
-            if (a == 0) {
-                maxAction = 0;
-                maxExpectedUtility = expectedUtility;
-            } else if (maxExpectedUtility < expectedUtility) {
-                maxAction = a;
-                maxExpectedUtility = expectedUtility;
-            }
-        }
-        return maxAction;
-    }
+    // /*
+    //  * Get the expected utility of an action, given the probabilities of the robots location.
+    //  */
+    // double getExpectedUtility(int action) {
+    //     double expectedUtility = 0;
+    //     for (int c = 0; c < mundo.width; c++) {
+    //         for (int r = 0; r < mundo.height; r++) {
+    //             int[] currPos = {c, r};
+    //             //For every state, that we have a possibility of being on
+    //             if (probs[c][r] != 0) {
+    //                 expectedUtility += probs[c][r] * getExpectedUtility(currPos, action);
+    //             }
+    //         }
+    //     }
+    //     return expectedUtility;
+    // }
+
+    // /*
+    //  * Return the action that gives the max utility
+    //  */
+    // int selectMaxExpectedUtilityAction() {
+    //     int NUMBER_OF_DIRECTIONS_TO_MOVE = 5;
+
+    //     //return the action with the maximum expected value
+    //     int maxAction = STAY;
+    //     double maxExpectedUtility = 0;
+    //     for (int a = 0; a < NUMBER_OF_DIRECTIONS_TO_MOVE; a++) {
+    //         //get the expected utility for this action
+    //         double expectedUtility = getExpectedUtility(a);
+    //         if (a == 0) {
+    //             maxAction = 0;
+    //             maxExpectedUtility = expectedUtility;
+    //         } else if (maxExpectedUtility < expectedUtility) {
+    //             maxAction = a;
+    //             maxExpectedUtility = expectedUtility;
+    //         }
+    //     }
+    //     return maxAction;
+    // }
     
     // This is the function you'd need to write to make the robot move using your AI;
     // You do NOT need to write this function for this lab; it can remain as is
     int automaticAction() {
+        System.out.println("Getting automatic action");
         //     rewardMatrix[][]
 
         //     public static final int NORTH = 0;
@@ -635,6 +664,8 @@ public class theRobot extends JFrame {
 
         //Approach 1
         // return selectMaxExpectedUtilityAction();
+        // int maxUtilAction = selectMaxExpectedUtilityAction();
+        // System.out.println("predicted action is: " + maxUtilAction);
         
 
 
@@ -642,165 +673,167 @@ public class theRobot extends JFrame {
         return STAY;  // default action for now
     }
 
-    double[] getTransitionProbs(int direction) {
-        double[] transitionProbs = new double[5];
-        //goes up, down, right, left, stay
-        for (int i = 0; i < 5; i++) {
-            transitionProbs[i] = (1 - moveProb) / 4;
-        }
-        transitionProbs[direction] = moveProb;
-        return transitionProbs;
-    }
+    // double[] getTransitionProbs(int direction) {
+    //     double[] transitionProbs = new double[5];
+    //     //goes up, down, right, left, stay
+    //     for (int i = 0; i < 5; i++) {
+    //         transitionProbs[i] = (1 - moveProb) / 4;
+    //     }
+    //     transitionProbs[direction] = moveProb;
+    //     return transitionProbs;
+    // }
 
-    /*
-     * Returns the next position of the 
-     */
-    int[] getNextPosition(int[] currPos, int direction) {
-        //currPos = column, row pair in that order
+    // /*
+    //  * Returns the next position of the 
+    //  */
+    // int[] getNextPosition(int[] currPos, int direction) {
+    //     //currPos = column, row pair in that order
 
-        int GRID_WALL = 1;
-        int GRID_DEATH = 2;
-        int GRID_GOAL = 3;
-        int GRID_EMPTY = 0;
+    //     int GRID_WALL = 1;
+    //     int GRID_DEATH = 2;
+    //     int GRID_GOAL = 3;
+    //     int GRID_EMPTY = 0;
         
-        int newC = currPos[0];
-        int newR = currPos[1];
-        if (mundo.grid[currPos[0]][currPos[1]] == GRID_EMPTY) {
-            //dependant on the direction increase/decrease r or c if you can
-            //if moving and CAN move there then execute, else return the current position
-            if (direction == NORTH && mundo.grid[newC][newR - 1] != GRID_WALL) {
-                newR = newR - 1;
-            } else if (direction == SOUTH && mundo.grid[newC][newR + 1] != GRID_WALL) {
-                newR = newR + 1;
-            } else if (direction == EAST && mundo.grid[newC + 1][newR] != GRID_WALL) {
-                newC = newC + 1;
-            } else if (direction == WEST && mundo.grid[newC - 1][newR] != GRID_WALL) {
-                newC = newC - 1;
-            }
-        } else {
-            System.out.println("player unable to reach this position");
-        }
+    //     int newC = currPos[0];
+    //     int newR = currPos[1];
+    //     if (mundo.grid[currPos[0]][currPos[1]] == GRID_EMPTY) {
+    //         //dependant on the direction increase/decrease r or c if you can
+    //         //if moving and CAN move there then execute, else return the current position
+    //         if (direction == NORTH && mundo.grid[newC][newR - 1] != GRID_WALL) {
+    //             newR = newR - 1;
+    //         } else if (direction == SOUTH && mundo.grid[newC][newR + 1] != GRID_WALL) {
+    //             newR = newR + 1;
+    //         } else if (direction == EAST && mundo.grid[newC + 1][newR] != GRID_WALL) {
+    //             newC = newC + 1;
+    //         } else if (direction == WEST && mundo.grid[newC - 1][newR] != GRID_WALL) {
+    //             newC = newC - 1;
+    //         }
+    //     } else {
+    //         System.out.println("player unable to reach this position");
+    //     }
 
-        int[] newPair = {newC, newR};
-        return newPair;
-    }
+    //     int[] newPair = {newC, newR};
+    //     return newPair;
+    // }
 
-    void valueIteration() {
-        System.out.println("Starting value Iteration");
-        //Initialize:
-        //Constants
-        double REWARD_EMPTY = -0.2;
-        double REWARD_DEATH = -20;
-        double REWARD_GOAL = 20;
-        double REWARD_WALL = 0.0; //not looked at
-        int NUMBER_OF_DIRECTIONS_TO_MOVE = 5;
-        int GRID_WALL = 1;
-        int GRID_DEATH = 2;
-        int GRID_GOAL = 3;
-        int GRID_EMPTY = 0;
+    // void valueIteration() {
+    //     System.out.println("Starting value Iteration");
+    //     //Initialize:
+    //     //Constants
+    //     double REWARD_EMPTY = -0.2;
+    //     double REWARD_DEATH = -20;
+    //     double REWARD_GOAL = 20;
+    //     double REWARD_WALL = 0.0; //not looked at
+    //     int NUMBER_OF_DIRECTIONS_TO_MOVE = 5;
+    //     int GRID_WALL = 1;
+    //     int GRID_DEATH = 2;
+    //     int GRID_GOAL = 3;
+    //     int GRID_EMPTY = 0;
 
-        double discount_fact = 1.0;
-        double converge_bound = 0.2;
-        double[][] rewardMatrix = new double[mundo.width][mundo.height];
+    //     double discount_fact = 1.0;
+    //     double converge_bound = 0.2;
+    //     double[][] rewardMatrix = new double[mundo.width][mundo.height];
 
-        //Get probabilities (what direction to go toward (initially always deterministic))
-        //For now assume the directions are all to stay put (will move around randomly)
-        //Initialize values
-        //Initialize rewards
-        for (int c = 0; c < mundo.width; c++) {
-            for (int r = 0; r < mundo.height; r++) {
-                switch (mundo.grid[c][r]) {
-                    case 0:
-                        //open
-                        Vs[c][r] = REWARD_EMPTY;
-                        rewardMatrix[c][r] = REWARD_EMPTY;
-                        break;
-                    case 1:
-                        //wall?
-                        Vs[c][r] = REWARD_WALL;
-                        rewardMatrix[c][r] = REWARD_WALL;
-                        break;
-                    case 2:
-                        //death
-                        Vs[c][r] = REWARD_DEATH;
-                        rewardMatrix[c][r] = REWARD_DEATH;
-                        break;
-                    case 3:
-                        //goal
-                        Vs[c][r] = REWARD_GOAL;
-                        rewardMatrix[c][r] = REWARD_GOAL;
-                        break;
-                    default:
-                        //Unknown
-                        System.out.println("Error in value iteration rewards");
-                        break;
-                }
-            }
-        }
-        //Initialize discount factor
-        //Initialize convergence factor
+    //     //Get probabilities (what direction to go toward (initially always deterministic))
+    //     //For now assume the directions are all to stay put (will move around randomly)
+    //     //Initialize values
+    //     //Initialize rewards
+    //     for (int c = 0; c < mundo.width; c++) {
+    //         for (int r = 0; r < mundo.height; r++) {
+    //             switch (mundo.grid[c][r]) {
+    //                 case 0:
+    //                     //open
+    //                     Vs[c][r] = REWARD_EMPTY;
+    //                     rewardMatrix[c][r] = REWARD_EMPTY;
+    //                     break;
+    //                 case 1:
+    //                     //wall?
+    //                     Vs[c][r] = REWARD_WALL;
+    //                     rewardMatrix[c][r] = REWARD_WALL;
+    //                     break;
+    //                 case 2:
+    //                     //death
+    //                     Vs[c][r] = REWARD_DEATH;
+    //                     rewardMatrix[c][r] = REWARD_DEATH;
+    //                     break;
+    //                 case 3:
+    //                     //goal
+    //                     Vs[c][r] = REWARD_GOAL;
+    //                     rewardMatrix[c][r] = REWARD_GOAL;
+    //                     break;
+    //                 default:
+    //                     //Unknown
+    //                     System.out.println("Error in value iteration rewards");
+    //                     break;
+    //             }
+    //         }
+    //     }
+    //     //Initialize discount factor
+    //     //Initialize convergence factor
 
-        double prevConvergeVal = converge_bound + 1;
-        while (prevConvergeVal > converge_bound) {
-            //1. calculate the new utility values
+    //     double prevConvergeVal = converge_bound + 1;
+    //     while (prevConvergeVal > converge_bound) {
+    //         //1. calculate the new utility values
 
-            //for every state s, calculate it's new utility value (the grid is column first!)
+    //         //for every state s, calculate it's new utility value (the grid is column first!)
             
-            for (int c = 0; c < mundo.width; c++) {
-                for (int r = 0; r < mundo.height; r++) {
-                    //Don't need to calculate utility values of walls, or end states (death / goal)
-                    //Walls are not able to be moved to so they don't have values
-                    //End states have fixed values because no actions are executed away from them.
-                    if (mundo.grid[c][r] == GRID_DEATH || mundo.grid[c][r] == GRID_GOAL || mundo.grid[c][r] == GRID_WALL) {
-                        continue;
-                    }
+    //         for (int c = 0; c < mundo.width; c++) {
+    //             for (int r = 0; r < mundo.height; r++) {
+    //                 //Don't need to calculate utility values of walls, or end states (death / goal)
+    //                 //Walls are not able to be moved to so they don't have values
+    //                 //End states have fixed values because no actions are executed away from them.
+    //                 if (mundo.grid[c][r] == GRID_DEATH || mundo.grid[c][r] == GRID_GOAL || mundo.grid[c][r] == GRID_WALL) {
+    //                     continue;
+    //                 }
 
 
-                    //state s == (c, r)
-                    int[] thisPair = {c, r};
-                    double oldUtilityVal = Vs[c][r];
+    //                 //state s == (c, r)
+    //                 int[] thisPair = {c, r};
+    //                 double oldUtilityVal = Vs[c][r];
 
-                    //calculate the max utility of going any maximal direction
-                    double maxUtilVal = 0;
-                    for (int d = 0; d < NUMBER_OF_DIRECTIONS_TO_MOVE; d++) {
-                        //Get the utility of choosing to go direction d
-                        double[] transitionProbs = getTransitionProbs(d);
-                        double thisUtility = 0;
-                        for (int probDir = 0; probDir < NUMBER_OF_DIRECTIONS_TO_MOVE; probDir++) {
-                            int[] newPos = getNextPosition(thisPair, d);
-                            double transVal = Vs[newPos[0]][newPos[1]];
-                            thisUtility += transitionProbs[probDir] * transVal;
-                        }
+    //                 //calculate the max utility of going any maximal direction
+    //                 double maxUtilVal = 0;
+    //                 for (int d = 0; d < NUMBER_OF_DIRECTIONS_TO_MOVE; d++) {
+    //                     //Get the utility of choosing to go direction d
+    //                     double[] transitionProbs = getTransitionProbs(d);
+    //                     double thisUtility = 0;
+    //                     for (int probDir = 0; probDir < NUMBER_OF_DIRECTIONS_TO_MOVE; probDir++) {
+    //                         int[] newPos = getNextPosition(thisPair, d);
+    //                         double transVal = Vs[newPos[0]][newPos[1]];
+    //                         thisUtility += transitionProbs[probDir] * transVal;
+    //                     }
 
-                        //compare max utilities
-                        if (d == 0) {
-                            maxUtilVal = thisUtility;
-                        } else if (maxUtilVal < thisUtility) {
-                            maxUtilVal = thisUtility;
-                        }
-                    }
+    //                     //compare max utilities
+    //                     if (d == 0) {
+    //                         maxUtilVal = thisUtility;
+    //                     } else if (maxUtilVal < thisUtility) {
+    //                         maxUtilVal = thisUtility;
+    //                     }
+    //                 }
 
-                    //calculate the new value for this state
-                    double newUtilityVal = rewardMatrix[c][r] + discount_fact * maxUtilVal;
-                    Vs[c][r] = newUtilityVal;
+    //                 //calculate the new value for this state
+    //                 double newUtilityVal = rewardMatrix[c][r] + discount_fact * maxUtilVal;
+    //                 Vs[c][r] = newUtilityVal;
 
-                    //Take maximum convergance amount
-                    double newConvergeVal = Math.abs(newUtilityVal - oldUtilityVal);
-                    if (c == 0 && r == 0) {
-                        //This is the first iteration
-                        prevConvergeVal = newConvergeVal;
-                    } else if (newConvergeVal > prevConvergeVal) {
-                        prevConvergeVal = newConvergeVal;
-                    }
-                }
-            }
-        }
-    }
+    //                 //Take maximum convergance amount
+    //                 double newConvergeVal = Math.abs(newUtilityVal - oldUtilityVal);
+    //                 if (c == 0 && r == 0) {
+    //                     //This is the first iteration
+    //                     prevConvergeVal = newConvergeVal;
+    //                 } else if (newConvergeVal > prevConvergeVal) {
+    //                     prevConvergeVal = newConvergeVal;
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
     
     void doStuff() {
         int action;
+
+        System.out.println("We are here!");
         
-        valueIteration();  // TODO: function you will write in Part II of the lab
+        // valueIteration();  // TODO: function you will write in Part II of the lab
         initializeProbabilities();  // Initializes the location (probability) map
         
         while (true) {
